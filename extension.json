@@ -21,6 +21,9 @@
 	"ResourceModules": {
 		"ext.MsUpload": {
 			"scripts": [
+				"CryptoJS/core.js",
+				"CryptoJS/lib-typedarrays.js",
+				"CryptoJS/sha1.js",
 				"plupload/plupload.full.min.js",
 				"MsUpload.js"
 			],

@@ -62,6 +62,11 @@
 						break; // Make it work for German too. Must be done this way because the error response doesn't include an error code.
 					}
 
+					if ( warning.indexOf( 'This file has identical content to' ) === 0 ) {
+						// don't allow replacing a file with identical content
+						break;
+					}
+
 					// When hovering over the link to the file about to be replaced, show the thumbnail
 					$( fileItem.warning ).find( 'a' ).mouseover( function () {
 						$( fileItem.warning ).find( 'div.thumb' ).show();
@@ -94,7 +99,10 @@
 			fileItem.loading.hide();
 		},
 
-		checkUploadWarning: function ( filename, fileItem, uploader ) {
+		checkUploadWarning: function ( filename, fileItem, uploader, file ) {
+
+			// Check filename via imageinfo API
+			// ref: https://www.mediawiki.org/wiki/API:Imageinfo
 			$.ajax( { url: mw.util.wikiScript( 'api' ), dataType: 'json', type: 'POST',
 			data: {
 				format: 'json',
@@ -115,6 +123,74 @@
 			}, error: function () {
 				MsUpload.warningText( fileItem, 'Error: Request failed', uploader );
 			} } );
+
+			// generate sha1 has to send to allimages API
+			MsUpload.getFileSha1( file, function( sha1 ) {
+
+				// Query allimages list for this sha1 hash
+				// ref: https://www.mediawiki.org/wiki/API:Allimages
+				$.ajax( { url: mw.util.wikiScript( 'api' ), dataType: 'json', type: 'POST',
+				data: {
+					format: 'json',
+					action: 'query',
+					list: 'allimages',
+					aiprop: 'url|canonicaltitle',
+					aisha1: sha1
+					// aisha1base36: 'ct1tbf6eyd66c3cfn5iy565vdbyyw06' // example base36 sha1 from MW database
+				}, success: function ( data ) {
+					if ( data && data.query && data.query.allimages ) {
+						var dupeImages = data.query.allimages;
+						if ( dupeImages.length > 0 ) {
+							var warningMsg = "This file has identical content to ";
+							var dupeLinks = [];
+							for ( var i = 0; i < dupeImages.length; i++ ) {
+								dupeLinks.push(
+									"<a href='" + dupeImages[i].descriptionurl
+									+ "'>" + dupeImages[i].canonicaltitle
+									+ "</a>"
+								);
+							}
+							warningMsg += dupeLinks.join( ", " );
+							MsUpload.warningText( fileItem, warningMsg, uploader );
+						}
+					} else {
+						MsUpload.warningText( fileItem, 'Error: Unknown result from API', uploader );
+					}
+				}, error: function () {
+					MsUpload.warningText( fileItem, 'Error: Request failed', uploader );
+				} } );
+
+			});
+
+
+		},
+
+		getFileSha1: function ( file, callback ) {
+
+			var nativeFile = file.getNative();
+			var sha1 = CryptoJS.algo.SHA1.create();
+			var read = 0;
+			var unit = 1024 * 1024;
+			var blob;
+			var reader = new FileReader();
+			reader.onload = function(e) {
+
+				var bytes = CryptoJS.lib.WordArray.create(
+					e.target.result, e.target.result.byteLength );
+				sha1.update(bytes);
+				read += unit;
+
+				if (read < nativeFile.size) {
+					blob = nativeFile.slice(read, read + unit);
+					reader.readAsArrayBuffer(blob);
+				} else {
+					var hash = sha1.finalize();
+					callback( hash.toString(CryptoJS.enc.Hex) );
+				}
+
+			};
+			reader.readAsArrayBuffer(nativeFile.slice(read, read + unit));
+
 		},
 
 		build: function ( file, uploader ) {
@@ -143,7 +219,7 @@
 				file.name = this.value + '.' + file.extension;
 				$( this ).prev().text( file.name );
 				MsUpload.unconfirmedReplacements = 0; // Hack! If the user renames a file to avoid replacing it, this forces the Upload button to appear, but it also does when a user just renames a file that wasn't about to replace another
-				MsUpload.checkUploadWarning( this.value, file.li, uploader );
+				MsUpload.checkUploadWarning( this.value, file.li, uploader, file );
 			} ).keydown( function ( event ) {
 				// For convenience, when pressing enter, save the new title
 				if ( event.keyCode === 13 ) {
@@ -200,7 +276,7 @@
 						file.li.type.addClass( 'pdf' );
 						break;
 				}
-				MsUpload.checkUploadWarning( file.name, file.li, uploader );
+				MsUpload.checkUploadWarning( file.name, file.li, uploader, file );
 
 				file.li.cancel = $( '<span>' ).attr( { 'class': 'file-cancel', title: mw.msg( 'msu-cancel-upload' ) } );
 				file.li.cancel.click( function () {
