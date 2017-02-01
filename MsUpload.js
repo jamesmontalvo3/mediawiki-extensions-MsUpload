@@ -106,6 +106,8 @@
 
 		checkUploadWarning: function ( filename, fileItem, uploader, file ) {
 
+			fileItem.removeAttr( "data-no-upload" );
+
 			// Check filename via imageinfo API
 			// ref: https://www.mediawiki.org/wiki/API:Imageinfo
 			$.ajax( { url: mw.util.wikiScript( 'api' ), dataType: 'json', type: 'POST',
