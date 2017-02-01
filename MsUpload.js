@@ -62,8 +62,10 @@
 						break; // Make it work for German too. Must be done this way because the error response doesn't include an error code.
 					}
 
-					if ( warning.indexOf( 'This file has identical content to' ) === 0 ) {
-						// don't allow replacing a file with identical content
+					// if warning message starts with content of
+					// msu-identical-content message, don't allow replacing file
+					var identicalMsg = mw.message( 'msu-identical-content', "" ).plain();
+					if ( warning.indexOf( identicalMsg ) === 0 ) {
 						break;
 					}
 
@@ -136,21 +138,19 @@
 					list: 'allimages',
 					aiprop: 'url|canonicaltitle',
 					aisha1: sha1
-					// aisha1base36: 'ct1tbf6eyd66c3cfn5iy565vdbyyw06' // example base36 sha1 from MW database
 				}, success: function ( data ) {
 					if ( data && data.query && data.query.allimages ) {
 						var dupeImages = data.query.allimages;
 						if ( dupeImages.length > 0 ) {
-							var warningMsg = "This file has identical content to ";
 							var dupeLinks = [];
 							for ( var i = 0; i < dupeImages.length; i++ ) {
-								dupeLinks.push(
-									"<a href='" + dupeImages[i].descriptionurl
-									+ "'>" + dupeImages[i].canonicaltitle
-									+ "</a>"
+								dupeLinks.push( mw.html.element(
+									'a',
+									{ href: dupeImages[i].descriptionurl },
+									dupeImages[i].canonicaltitle )
 								);
 							}
-							warningMsg += dupeLinks.join( ", " );
+							var warningMsg = mw.message( 'msu-identical-content', dupeLinks.join( ", " ) ).plain();
 							MsUpload.warningText( fileItem, warningMsg, uploader );
 						}
 					} else {
