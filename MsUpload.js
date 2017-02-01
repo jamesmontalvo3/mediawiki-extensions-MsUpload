@@ -33,8 +33,8 @@
 			}
 		},
 
-		unconfirmedReplacements: 0,
 		warningText: function ( fileItem, warning, uploader ) {
+			fileItem.attr( "data-no-upload", "true" );
 			switch ( warning ) {
 				case '':
 				case '&nbsp;':
@@ -79,17 +79,15 @@
 					// If a file with the same name already exists, add a checkbox to confirm the replacement
 					if ( msuVars.confirmReplace ) {
 
-						MsUpload.unconfirmedReplacements++;
-
 						var title = $( fileItem.warning ).siblings( '.file-name' );
 
 						var checkbox = $( '<input>' ).attr( 'type', 'checkbox' ).click( function () {
 							if ( $( this ).is( ':checked' ) ) {
 								title.show().next().hide();
-								MsUpload.unconfirmedReplacements--;
+								fileItem.removeAttr( "data-no-upload" );
 							} else {
 								title.hide().next().show().select();
-								MsUpload.unconfirmedReplacements++;
+								fileItem.attr( "data-no-upload", "true" );
 							}
 							uploader.trigger( 'CheckFiles' );
 						} );
@@ -162,7 +160,6 @@
 
 			});
 
-
 		},
 
 		getFileSha1: function ( file, callback ) {
@@ -218,7 +215,7 @@
 			} ).change( function () {
 				file.name = this.value + '.' + file.extension;
 				$( this ).prev().text( file.name );
-				MsUpload.unconfirmedReplacements = 0; // Hack! If the user renames a file to avoid replacing it, this forces the Upload button to appear, but it also does when a user just renames a file that wasn't about to replace another
+				// MsUpload.unconfirmedReplacements = 0; // Hack! If the user renames a file to avoid replacing it, this forces the Upload button to appear, but it also does when a user just renames a file that wasn't about to replace another
 				MsUpload.checkUploadWarning( this.value, file.li, uploader, file );
 			} ).keydown( function ( event ) {
 				// For convenience, when pressing enter, save the new title
@@ -529,8 +526,11 @@
 				$( '#msupload-files' ).hide();
 			}
 
-			if ( MsUpload.unconfirmedReplacements ) {
-				$( '#msupload-files' ).hide();
+			for( var i = 0; i < filesLength; i++ ) {
+				if ( uploader.files[i].li.attr( "data-no-upload" ) === "true" ) {
+					$( '#msupload-files' ).hide(); // if any file is un-uploadable, hide upload button
+					break;
+				}
 			}
 
 			if ( MsUpload.filesArray.length > 1 ) {
