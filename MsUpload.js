@@ -33,12 +33,12 @@
 			}
 		},
 
-		unconfirmedReplacements: 0,
 		warningText: function ( fileItem, warning, uploader ) {
 			switch ( warning ) {
 				case '':
 				case '&nbsp;':
 				case '&#160;':
+					// uploads allowed
 					$( fileItem.warning ).empty()
 						.siblings( '.file-name' ).show()
 						.siblings( '.file-name-input' ).hide()
@@ -47,10 +47,15 @@
 
 				case 'Error: Unknown result from API':
 				case 'Error: Request failed':
+					// uploads not allowed
+					fileItem.attr( "data-no-upload", "true" );
 					$( fileItem.warning ).text( warning );
 					break;
 
 				default:
+					// uploads not allowed (unless "replace" is checked on file name collisions)
+					fileItem.attr( "data-no-upload", "true" );
+
 					// IMPORTANT! The code below assumes that every warning not captured by the code above is about a file being replaced
 					$( fileItem.warning ).html( warning );
 
@@ -62,6 +67,13 @@
 						break; // Make it work for German too. Must be done this way because the error response doesn't include an error code.
 					}
 
+					// if warning message starts with content of
+					// msu-identical-content message, don't allow replacing file
+					var identicalMsg = mw.message( 'msu-identical-content', "" ).plain();
+					if ( warning.indexOf( identicalMsg ) === 0 ) {
+						break;
+					}
+
 					// When hovering over the link to the file about to be replaced, show the thumbnail
 					$( fileItem.warning ).find( 'a' ).mouseover( function () {
 						$( fileItem.warning ).find( 'div.thumb' ).show();
@@ -69,24 +81,32 @@
 						$( fileItem.warning ).find( 'div.thumb' ).hide();
 					} );
 
-					// If a file with the same name already exists, add a checkbox to confirm the replacement
-					if ( msuVars.confirmReplace ) {
+					if ( msuVars.disallowReplaceFile ) {
+						// do nothing. files will maintain "data-no-upload" marker and will fail checks later
+					}
 
-						MsUpload.unconfirmedReplacements++;
+					// If a file with the same name already exists, add a checkbox to confirm the replacement
+					// checkbox will rmeove "data-no-upload" from file so it'll pass checks later
+					else if ( msuVars.confirmReplace ) {
 
 						var title = $( fileItem.warning ).siblings( '.file-name' );
 
 						var checkbox = $( '<input>' ).attr( 'type', 'checkbox' ).click( function () {
 							if ( $( this ).is( ':checked' ) ) {
 								title.show().next().hide();
-								MsUpload.unconfirmedReplacements--;
+								fileItem.removeAttr( "data-no-upload" );
 							} else {
 								title.hide().next().show().select();
-								MsUpload.unconfirmedReplacements++;
+								fileItem.attr( "data-no-upload", "true" );
 							}
 							uploader.trigger( 'CheckFiles' );
 						} );
 						$( '<label>' ).append( checkbox ).append( mw.msg( 'msu-replace-file' ) ).appendTo( fileItem.warning );
+					}
+
+					// Without checkbox, just strip "data-no-upload" to allow replacing file (dangerous!)
+					else {
+						fileItem.removeAttr( "data-no-upload" );
 					}
 					break;
 			}
@@ -94,7 +114,12 @@
 			fileItem.loading.hide();
 		},
 
-		checkUploadWarning: function ( filename, fileItem, uploader ) {
+		checkUploadWarning: function ( filename, fileItem, uploader, file ) {
+
+			fileItem.removeAttr( "data-no-upload" );
+
+			// Check filename via imageinfo API
+			// ref: https://www.mediawiki.org/wiki/API:Imageinfo
 			$.ajax( { url: mw.util.wikiScript( 'api' ), dataType: 'json', type: 'POST',
 			data: {
 				format: 'json',
@@ -112,9 +137,78 @@
 				} else {
 					MsUpload.warningText( fileItem, 'Error: Unknown result from API', uploader );
 				}
+				uploader.trigger( 'CheckFiles' );
 			}, error: function () {
 				MsUpload.warningText( fileItem, 'Error: Request failed', uploader );
+				uploader.trigger( 'CheckFiles' );
 			} } );
+
+			// generate sha1 has to send to allimages API
+			MsUpload.getFileSha1( file, function( sha1 ) {
+
+				// Query allimages list for this sha1 hash
+				// ref: https://www.mediawiki.org/wiki/API:Allimages
+				$.ajax( { url: mw.util.wikiScript( 'api' ), dataType: 'json', type: 'POST',
+				data: {
+					format: 'json',
+					action: 'query',
+					list: 'allimages',
+					aiprop: 'url|canonicaltitle',
+					aisha1: sha1
+				}, success: function ( data ) {
+					if ( data && data.query && data.query.allimages ) {
+						var dupeImages = data.query.allimages;
+						if ( dupeImages.length > 0 ) {
+							var dupeLinks = [];
+							for ( var i = 0; i < dupeImages.length; i++ ) {
+								dupeLinks.push( mw.html.element(
+									'a',
+									{ href: dupeImages[i].descriptionurl },
+									dupeImages[i].canonicaltitle )
+								);
+							}
+							var warningMsg = mw.message( 'msu-identical-content', dupeLinks.join( ", " ) ).plain();
+							MsUpload.warningText( fileItem, warningMsg, uploader );
+						}
+					} else {
+						MsUpload.warningText( fileItem, 'Error: Unknown result from API', uploader );
+					}
+					uploader.trigger( 'CheckFiles' );
+				}, error: function () {
+					MsUpload.warningText( fileItem, 'Error: Request failed', uploader );
+					uploader.trigger( 'CheckFiles' );
+				} } );
+
+			});
+
+		},
+
+		getFileSha1: function ( file, callback ) {
+
+			var nativeFile = file.getNative();
+			var sha1 = CryptoJS.algo.SHA1.create();
+			var read = 0;
+			var unit = 1024 * 1024;
+			var blob;
+			var reader = new FileReader();
+			reader.onload = function(e) {
+
+				var bytes = CryptoJS.lib.WordArray.create(
+					e.target.result, e.target.result.byteLength );
+				sha1.update(bytes);
+				read += unit;
+
+				if (read < nativeFile.size) {
+					blob = nativeFile.slice(read, read + unit);
+					reader.readAsArrayBuffer(blob);
+				} else {
+					var hash = sha1.finalize();
+					callback( hash.toString(CryptoJS.enc.Hex) );
+				}
+
+			};
+			reader.readAsArrayBuffer(nativeFile.slice(read, read + unit));
+
 		},
 
 		build: function ( file, uploader ) {
@@ -142,8 +236,8 @@
 			} ).change( function () {
 				file.name = this.value + '.' + file.extension;
 				$( this ).prev().text( file.name );
-				MsUpload.unconfirmedReplacements = 0; // Hack! If the user renames a file to avoid replacing it, this forces the Upload button to appear, but it also does when a user just renames a file that wasn't about to replace another
-				MsUpload.checkUploadWarning( this.value, file.li, uploader );
+				// MsUpload.unconfirmedReplacements = 0; // Hack! If the user renames a file to avoid replacing it, this forces the Upload button to appear, but it also does when a user just renames a file that wasn't about to replace another
+				MsUpload.checkUploadWarning( this.value, file.li, uploader, file );
 			} ).keydown( function ( event ) {
 				// For convenience, when pressing enter, save the new title
 				if ( event.keyCode === 13 ) {
@@ -200,7 +294,7 @@
 						file.li.type.addClass( 'pdf' );
 						break;
 				}
-				MsUpload.checkUploadWarning( file.name, file.li, uploader );
+				MsUpload.checkUploadWarning( file.name, file.li, uploader, file );
 
 				file.li.cancel = $( '<span>' ).attr( { 'class': 'file-cancel', title: mw.msg( 'msu-cancel-upload' ) } );
 				file.li.cancel.click( function () {
@@ -249,6 +343,10 @@
 				uploadList = $( '<ul>' ).attr( 'id', 'msupload-list' ),
 				bottomDiv = $( '<div>' ).attr( 'id', 'msupload-bottom' ).hide(),
 				startButton = $( '<a>' ).attr( 'id', 'msupload-files' ).hide(),
+				noUploadMesage = $( '<span>' ).attr( {
+					'id': 'msupload-no-upload-msg',
+					'class': 'upload-error'
+				} ).text( mw.msg( 'msu-no-upload-msg' ) ).hide(),
 				cleanAll = $( '<a>' ).attr( 'id', 'msupload-clean-all' ).text( mw.msg( 'msu-clean-all' ) ).hide(),
 				galleryInsert = $( '<a>' ).attr( 'id', 'msupload-insert-gallery' ).hide(),
 				filesInsert = $( '<a>' ).attr( 'id', 'msupload-insert-files' ).hide(),
@@ -256,7 +354,7 @@
 				uploadDrop = $( '<div>' ).attr( 'id', 'msupload-dropzone' ).hide();
 
 			// Add them to the DOM
-			bottomDiv.append( startButton, cleanAll, galleryInsert, filesInsert, linksInsert );
+			bottomDiv.append( startButton, noUploadMesage, cleanAll, galleryInsert, filesInsert, linksInsert );
 			uploadDiv.append( statusDiv, uploadDrop, uploadList, bottomDiv );
 			$( '#wikiEditor-ui-toolbar' ).after( uploadDiv );
 			uploadContainer.append( uploadButton );
@@ -442,20 +540,37 @@
 
 			mw.log( 'files: ' + filesLength + ', gallery: ' + MsUpload.galleryArray.length + ', list: ' + listLength );
 
+			var disableUploads = false;
+			for( var i = 0; i < filesLength; i++ ) {
+				if ( uploader.files[i].li.attr( "data-no-upload" ) === "true" ) {
+					disableUploads = true; // if any file is un-uploadable, disable uploads
+					break;
+				}
+			}
+
 			if ( filesLength ) {
-				$( '#msupload-bottom' ).show();
 				if ( filesLength === 1 ) {
 					$( '#msupload-files' ).text( mw.msg( 'msu-upload-this' ) ).show();
 				} else {
 					$( '#msupload-files' ).text( mw.msg( 'msu-upload-all' ) ).show();
 				}
+
+				if ( disableUploads ) {
+					$( '#msupload-files' ).hide(); // hide upload button
+					$( '#msupload-no-upload-msg' ).show(); // show explanation
+				}
+				else {
+					$( '#msupload-files' ).show();
+					$( '#msupload-no-upload-msg' ).hide();
+				}
 			} else {
+				// no uploads pending, don't show upload button or message about why you can't upload
 				$( '#msupload-files' ).hide();
+				$( '#msupload-no-upload-msg' ).hide();
 			}
 
-			if ( MsUpload.unconfirmedReplacements ) {
-				$( '#msupload-files' ).hide();
-			}
+
+
 
 			if ( MsUpload.filesArray.length > 1 ) {
 				$( '#msupload-insert-files' ).show();

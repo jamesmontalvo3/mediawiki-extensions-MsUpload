@@ -15,7 +15,7 @@
 }
 
 #msupload-select:hover {
-	opacity: 0.7; 
+	opacity: 0.7;
 	zoom: 1;
 }
 
@@ -24,7 +24,7 @@
 	background: #657d91;
 	border: 1px solid #aaa;
 	z-index: 0;
-} 
+}
 
 #msupload-div a {
 	cursor: pointer;
@@ -151,7 +151,7 @@
 }
 
 #msupload-list .file .file-cancel:hover {
-	opacity: 0.7; 
+	opacity: 0.7;
 }
 
 #msupload-list .file .file-loading {
@@ -223,10 +223,14 @@
 	 height: 22px;
 }
 
-#msupload-bottom a {
+#msupload-bottom a, #msupload-bottom span {
 	color: white;
 	font-weight: bold;
 	margin-right: 20px;
+}
+
+#msupload-bottom span.upload-error {
+	color: red;
 }
 
 #msupload-bottom #msupload-files {

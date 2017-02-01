@@ -21,6 +21,9 @@
 	"ResourceModules": {
 		"ext.MsUpload": {
 			"scripts": [
+				"CryptoJS/core.js",
+				"CryptoJS/lib-typedarrays.js",
+				"CryptoJS/sha1.js",
 				"plupload/plupload.full.min.js",
 				"MsUpload.js"
 			],
@@ -41,6 +44,8 @@
 				"msu-upload-this",
 				"msu-upload-all",
 				"msu-dropzone",
+				"msu-identical-content",
+				"msu-no-upload-msg",
 				"msu-comment"
 			]
 		}
@@ -63,6 +68,7 @@
 		"MSU_checkAutoCat": true,
 		"MSU_useMsLinks": false,
 		"MSU_confirmReplace": true,
+		"MSU_disallowReplaceFile": false,
 		"MSU_imgParams": "400px",
 		"MSU_uploadsize": "100mb"
 	},
