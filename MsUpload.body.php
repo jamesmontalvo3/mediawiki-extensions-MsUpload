@@ -27,6 +27,7 @@ class MsUpload {
 			'checkAutoCat' => $wgMSU_checkAutoCat,
 			'useMsLinks' => $wgMSU_useMsLinks,
 			'confirmReplace' => $wgMSU_confirmReplace,
+			'disallowReplaceFile' => $wgMSU_disallowReplaceFile,
 			'imgParams' => $wgMSU_imgParams,
 			'uploadsize' => $wgMSU_uploadsize,
 		);

@@ -81,8 +81,13 @@
 						$( fileItem.warning ).find( 'div.thumb' ).hide();
 					} );
 
+					if ( msuVars.disallowReplaceFile ) {
+						// do nothing. files will maintain "data-no-upload" marker and will fail checks later
+					}
+
 					// If a file with the same name already exists, add a checkbox to confirm the replacement
-					if ( msuVars.confirmReplace ) {
+					// checkbox will rmeove "data-no-upload" from file so it'll pass checks later
+					else if ( msuVars.confirmReplace ) {
 
 						var title = $( fileItem.warning ).siblings( '.file-name' );
 
@@ -97,6 +102,11 @@
 							uploader.trigger( 'CheckFiles' );
 						} );
 						$( '<label>' ).append( checkbox ).append( mw.msg( 'msu-replace-file' ) ).appendTo( fileItem.warning );
+					}
+
+					// Without checkbox, just strip "data-no-upload" to allow replacing file (dangerous!)
+					else {
+						fileItem.removeAttr( "data-no-upload" );
 					}
 					break;
 			}

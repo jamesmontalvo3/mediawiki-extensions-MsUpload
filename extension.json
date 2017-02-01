@@ -68,6 +68,7 @@
 		"MSU_checkAutoCat": true,
 		"MSU_useMsLinks": false,
 		"MSU_confirmReplace": true,
+		"MSU_disallowReplaceFile": false,
 		"MSU_imgParams": "400px",
 		"MSU_uploadsize": "100mb"
 	},
