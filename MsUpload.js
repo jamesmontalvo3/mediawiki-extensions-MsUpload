@@ -34,11 +34,11 @@
 		},
 
 		warningText: function ( fileItem, warning, uploader ) {
-			fileItem.attr( "data-no-upload", "true" );
 			switch ( warning ) {
 				case '':
 				case '&nbsp;':
 				case '&#160;':
+					// uploads allowed
 					$( fileItem.warning ).empty()
 						.siblings( '.file-name' ).show()
 						.siblings( '.file-name-input' ).hide()
@@ -47,10 +47,15 @@
 
 				case 'Error: Unknown result from API':
 				case 'Error: Request failed':
+					// uploads not allowed
+					fileItem.attr( "data-no-upload", "true" );
 					$( fileItem.warning ).text( warning );
 					break;
 
 				default:
+					// uploads not allowed (unless "replace" is checked on file name collisions)
+					fileItem.attr( "data-no-upload", "true" );
+
 					// IMPORTANT! The code below assumes that every warning not captured by the code above is about a file being replaced
 					$( fileItem.warning ).html( warning );
 
@@ -322,6 +327,7 @@
 				uploadList = $( '<ul>' ).attr( 'id', 'msupload-list' ),
 				bottomDiv = $( '<div>' ).attr( 'id', 'msupload-bottom' ).hide(),
 				startButton = $( '<a>' ).attr( 'id', 'msupload-files' ).hide(),
+				noUploadMesage = $( '<span>' ).attr( 'id', 'msupload-no-upload-msg' ).text( mw.msg( 'msu-no-upload-msg' ) ).hide(),
 				cleanAll = $( '<a>' ).attr( 'id', 'msupload-clean-all' ).text( mw.msg( 'msu-clean-all' ) ).hide(),
 				galleryInsert = $( '<a>' ).attr( 'id', 'msupload-insert-gallery' ).hide(),
 				filesInsert = $( '<a>' ).attr( 'id', 'msupload-insert-files' ).hide(),
@@ -515,23 +521,36 @@
 
 			mw.log( 'files: ' + filesLength + ', gallery: ' + MsUpload.galleryArray.length + ', list: ' + listLength );
 
+			for( var i = 0; i < filesLength; i++ ) {
+				if ( uploader.files[i].li.attr( "data-no-upload" ) === "true" ) {
+					disableUploads = true; // if any file is un-uploadable, disable uploads
+					break;
+				}
+			}
+
 			if ( filesLength ) {
-				$( '#msupload-bottom' ).show();
 				if ( filesLength === 1 ) {
 					$( '#msupload-files' ).text( mw.msg( 'msu-upload-this' ) ).show();
 				} else {
 					$( '#msupload-files' ).text( mw.msg( 'msu-upload-all' ) ).show();
 				}
+
+				if ( disableUploads ) {
+					$( '#msupload-files' ).hide(); // hide upload button
+					$( '#msupload-no-upload-msg' ).show(); // show explanation
+				}
+				else {
+					$( '#msupload-files' ).show();
+					$( '#msupload-no-upload-msg' ).hide();
+				}
 			} else {
+				// no uploads pending, don't show upload button or message about why you can't upload
 				$( '#msupload-files' ).hide();
+				$( '#msupload-no-upload-msg' ).hide();
 			}
 
-			for( var i = 0; i < filesLength; i++ ) {
-				if ( uploader.files[i].li.attr( "data-no-upload" ) === "true" ) {
-					$( '#msupload-files' ).hide(); // if any file is un-uploadable, hide upload button
-					break;
-				}
-			}
+
+
 
 			if ( MsUpload.filesArray.length > 1 ) {
 				$( '#msupload-insert-files' ).show();

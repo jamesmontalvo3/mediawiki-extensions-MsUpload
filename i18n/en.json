@@ -22,5 +22,6 @@
 	"msu-upload-all": "Upload all files",
 	"msu-dropzone": "Drop files here",
 	"msu-identical-content": "This file has identical content to $1",
+	"msu-no-upload-msg": "Fix file errors above to upload",
 	"msu-comment": "File uploaded with MsUpload"
 }
