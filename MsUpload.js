@@ -335,7 +335,7 @@
 				uploadDrop = $( '<div>' ).attr( 'id', 'msupload-dropzone' ).hide();
 
 			// Add them to the DOM
-			bottomDiv.append( startButton, cleanAll, galleryInsert, filesInsert, linksInsert );
+			bottomDiv.append( startButton, noUploadMesage, cleanAll, galleryInsert, filesInsert, linksInsert );
 			uploadDiv.append( statusDiv, uploadDrop, uploadList, bottomDiv );
 			$( '#wikiEditor-ui-toolbar' ).after( uploadDiv );
 			uploadContainer.append( uploadButton );
@@ -521,6 +521,7 @@
 
 			mw.log( 'files: ' + filesLength + ', gallery: ' + MsUpload.galleryArray.length + ', list: ' + listLength );
 
+			var disableUploads = false;
 			for( var i = 0; i < filesLength; i++ ) {
 				if ( uploader.files[i].li.attr( "data-no-upload" ) === "true" ) {
 					disableUploads = true; // if any file is un-uploadable, disable uploads

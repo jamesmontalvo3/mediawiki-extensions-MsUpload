@@ -45,6 +45,7 @@
 				"msu-upload-all",
 				"msu-dropzone",
 				"msu-identical-content",
+				"msu-no-upload-msg",
 				"msu-comment"
 			]
 		}
