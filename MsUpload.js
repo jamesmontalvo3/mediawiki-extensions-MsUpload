@@ -125,8 +125,10 @@
 				} else {
 					MsUpload.warningText( fileItem, 'Error: Unknown result from API', uploader );
 				}
+				uploader.trigger( 'CheckFiles' );
 			}, error: function () {
 				MsUpload.warningText( fileItem, 'Error: Request failed', uploader );
+				uploader.trigger( 'CheckFiles' );
 			} } );
 
 			// generate sha1 has to send to allimages API
@@ -159,8 +161,10 @@
 					} else {
 						MsUpload.warningText( fileItem, 'Error: Unknown result from API', uploader );
 					}
+					uploader.trigger( 'CheckFiles' );
 				}, error: function () {
 					MsUpload.warningText( fileItem, 'Error: Request failed', uploader );
+					uploader.trigger( 'CheckFiles' );
 				} } );
 
 			});
@@ -327,7 +331,10 @@
 				uploadList = $( '<ul>' ).attr( 'id', 'msupload-list' ),
 				bottomDiv = $( '<div>' ).attr( 'id', 'msupload-bottom' ).hide(),
 				startButton = $( '<a>' ).attr( 'id', 'msupload-files' ).hide(),
-				noUploadMesage = $( '<span>' ).attr( 'id', 'msupload-no-upload-msg' ).text( mw.msg( 'msu-no-upload-msg' ) ).hide(),
+				noUploadMesage = $( '<span>' ).attr( {
+					'id': 'msupload-no-upload-msg',
+					'class': 'upload-error'
+				} ).text( mw.msg( 'msu-no-upload-msg' ) ).hide(),
 				cleanAll = $( '<a>' ).attr( 'id', 'msupload-clean-all' ).text( mw.msg( 'msu-clean-all' ) ).hide(),
 				galleryInsert = $( '<a>' ).attr( 'id', 'msupload-insert-gallery' ).hide(),
 				filesInsert = $( '<a>' ).attr( 'id', 'msupload-insert-files' ).hide(),
